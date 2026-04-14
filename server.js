@@ -79,12 +79,9 @@ let games = [
 
 let nextGameId = 3;
 
-// Servir arquivos estáticos ANTES das rotas de API
-app.use(express.static('.'));
-
-// Rota para servir index.html na raiz
+// Rota para servir index.html na raiz - DEVE VIR PRIMEIRO
 app.get('/', (req, res) => {
-  res.sendFile(path.resolve('index.html'));
+  res.sendFile(path.resolve('./index.html'));
 });
 
 // Rotas de API
@@ -125,6 +122,14 @@ app.post('/api/games', (req, res) => {
 
   games.push(newGame);
   res.json({ message: 'Jogo adicionado com sucesso', game: newGame });
+});
+
+// Servir arquivos estáticos por último (para não sobrescrever rotas explícitas)
+app.use(express.static('.'));
+
+// Rota 404 fallback - serve index.html para SPA
+app.get('*', (req, res) => {
+  res.sendFile(path.resolve('./index.html'));
 });
 
 app.listen(PORT, () => {
