@@ -79,13 +79,13 @@ let games = [
 
 let nextGameId = 3;
 
+// Servir arquivos estáticos ANTES das rotas de API
+app.use(express.static('.'));
+
 // Rota para servir index.html na raiz
 app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'index.html'));
+  res.sendFile(path.resolve('index.html'));
 });
-
-// Servir arquivos estáticos
-app.use(express.static(path.join(__dirname)));
 
 // Rotas de API
 app.get('/api/games', (req, res) => {
