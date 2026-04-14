@@ -80,15 +80,38 @@ let games = [
 
 let nextGameId = 3;
 
-// Rota para servir index.html na raiz - DEVE VIR PRIMEIRO
+// Rota para servir index.html na raiz
 app.get('/', (req, res) => {
   try {
-    const html = fs.readFileSync(path.join(__dirname || '.', 'index.html'), 'utf8');
+    // Tenta diferentes caminhos possíveis
+    let html;
+    const possiblePaths = [
+      'index.html',
+      './index.html',
+      path.join(process.cwd(), 'index.html'),
+      path.join(__dirname, 'index.html')
+    ];
+    
+    for (const filepath of possiblePaths) {
+      try {
+        html = fs.readFileSync(filepath, 'utf8');
+        console.log(`Arquivo encontrado em: ${filepath}`);
+        break;
+      } catch (e) {
+        console.log(`Não encontrado em: ${filepath}`);
+      }
+    }
+    
+    if (!html) {
+      console.error('index.html não encontrado em nenhum caminho');
+      return res.status(500).send('index.html não encontrado');
+    }
+    
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.send(html);
   } catch (err) {
     console.error('Erro ao servir index.html:', err);
-    res.status(500).send('Erro ao carregar página');
+    res.status(500).send('Erro ao carregar página: ' + err.message);
   }
 });
 
@@ -132,19 +155,38 @@ app.post('/api/games', (req, res) => {
   res.json({ message: 'Jogo adicionado com sucesso', game: newGame });
 });
 
-// Servir arquivos estáticos por último (para não sobrescrever rotas explícitas)
-app.use(express.static(path.join(__dirname || '.', 'public')));
-app.use(express.static(__dirname || '.'));
+// Servir arquivos estáticos
+app.use(express.static('.'));
 
-// Rota 404 fallback - serve index.html para SPA
+// Fallback para SPA - serve index.html para rotas desconhecidas
 app.get('*', (req, res) => {
   try {
-    const html = fs.readFileSync(path.join(__dirname || '.', 'index.html'), 'utf8');
+    let html;
+    const possiblePaths = [
+      'index.html',
+      './index.html',
+      path.join(process.cwd(), 'index.html'),
+      path.join(__dirname, 'index.html')
+    ];
+    
+    for (const filepath of possiblePaths) {
+      try {
+        html = fs.readFileSync(filepath, 'utf8');
+        break;
+      } catch (e) {
+        // continue
+      }
+    }
+    
+    if (!html) {
+      return res.status(500).send('index.html não encontrado');
+    }
+    
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.send(html);
   } catch (err) {
-    console.error('Erro ao servir index.html (fallback):', err);
-    res.status(500).send('Erro ao carregar página');
+    console.error('Erro no fallback:', err);
+    res.status(500).send('Erro: ' + err.message);
   }
 });
 
