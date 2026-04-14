@@ -1,23 +1,15 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
-const fs = require('fs');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Middleware - ORDEM IMPORTA!
+// Middleware
 app.use(cors());
 app.use(express.json());
-
-// Rota explícita para a raiz - ANTES de tudo
-app.get('/', (_req, res) => {
-  res.sendFile(path.resolve(path.join(__dirname, 'index.html')));
-});
-
-// Servir ARQUIVOS ESTÁTICOS
-app.use(express.static(path.join(__dirname)));
-app.use(express.static('.'));
+app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(__dirname));
 
 // Dados em memória
 let games = [
@@ -164,20 +156,9 @@ app.post('/api/games', (req, res) => {
   res.json({ message: 'Jogo adicionado com sucesso', game: newGame });
 });
 
-// ROTA FINAL - serve index.html para qualquer outra rota (SPA)
-app.get('*', (req, res, next) => {
-  // Se é uma requisição de arquivo estático que não encontramos, não interfere
-  if (req.accepts('html')) {
-    try {
-      const filePath = path.join(__dirname, 'index.html');
-      res.sendFile(filePath);
-    } catch (err) {
-      console.error('Erro ao enviar index.html:', err);
-      res.status(404).send('Página não encontrada');
-    }
-  } else {
-    next();
-  }
+// Fallback SPA route - serve index.html for any path not matched above
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'index.html'));
 });
 
 app.listen(PORT, () => {
