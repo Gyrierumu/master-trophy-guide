@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const fs = require('fs');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -81,7 +82,14 @@ let nextGameId = 3;
 
 // Rota para servir index.html na raiz - DEVE VIR PRIMEIRO
 app.get('/', (req, res) => {
-  res.sendFile(path.resolve('./index.html'));
+  try {
+    const html = fs.readFileSync(path.join(__dirname || '.', 'index.html'), 'utf8');
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.send(html);
+  } catch (err) {
+    console.error('Erro ao servir index.html:', err);
+    res.status(500).send('Erro ao carregar página');
+  }
 });
 
 // Rotas de API
@@ -125,11 +133,19 @@ app.post('/api/games', (req, res) => {
 });
 
 // Servir arquivos estáticos por último (para não sobrescrever rotas explícitas)
-app.use(express.static('.'));
+app.use(express.static(path.join(__dirname || '.', 'public')));
+app.use(express.static(__dirname || '.'));
 
 // Rota 404 fallback - serve index.html para SPA
 app.get('*', (req, res) => {
-  res.sendFile(path.resolve('./index.html'));
+  try {
+    const html = fs.readFileSync(path.join(__dirname || '.', 'index.html'), 'utf8');
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.send(html);
+  } catch (err) {
+    console.error('Erro ao servir index.html (fallback):', err);
+    res.status(500).send('Erro ao carregar página');
+  }
 });
 
 app.listen(PORT, () => {
