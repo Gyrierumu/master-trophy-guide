@@ -132,6 +132,11 @@ function insertSampleData() {
   });
 }
 
+// Rota para servir index.html na raiz
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'index.html'));
+});
+
 // Rotas
 app.get('/api/games', (req, res) => {
   db.all(`SELECT * FROM games`, [], (err, rows) => {
