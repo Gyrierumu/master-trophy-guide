@@ -211,7 +211,7 @@
         // Carregar lista de jogos
         async function loadGames() {
             try {
-                const response = await fetch('http://localhost:3000/api/games');
+                const response = await fetch('/api/games');
                 availableGames = await response.json();
             } catch (error) {
                 console.error('Erro ao carregar jogos:', error);
@@ -274,7 +274,7 @@
             document.getElementById('guideContent').classList.add('hidden');
 
             try {
-                const response = await fetch(`http://localhost:3000/api/games/${encodeURIComponent(gameName)}`);
+                const response = await fetch(`/api/games/${encodeURIComponent(gameName)}`);
                 if (!response.ok) {
                     throw new Error('Jogo não encontrado');
                 }
@@ -585,7 +585,7 @@
             });
 
             try {
-                const response = await fetch('http://localhost:3000/api/games', {
+                const response = await fetch('/api/games', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ name, difficulty, time, missable, roadmap, trophies })
