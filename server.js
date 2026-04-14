@@ -10,7 +10,12 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
-// Servir ARQUIVOS ESTÁTICOS PRIMEIRO (CSS, JS, imagens, etc.)
+// Rota explícita para a raiz - ANTES de tudo
+app.get('/', (_req, res) => {
+  res.sendFile(path.resolve(path.join(__dirname, 'index.html')));
+});
+
+// Servir ARQUIVOS ESTÁTICOS
 app.use(express.static(path.join(__dirname)));
 app.use(express.static('.'));
 
