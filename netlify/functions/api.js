@@ -80,7 +80,7 @@ exports.handler = async (event) => {
 
   try {
     // GET /api/games - listar todos os jogos
-    if (method === 'GET' && path === '/.netlify/functions/api/games') {
+    if (method === 'GET' && (path === '/.netlify/functions/api/games' || path === '/api/games')) {
       return {
         statusCode: 200,
         headers: { 'Content-Type': 'application/json' },
@@ -96,7 +96,7 @@ exports.handler = async (event) => {
     }
 
     // GET /api/games/:name - buscar um jogo específico
-    if (method === 'GET' && path.match(/^\/.netlify\/functions\/api\/games\/.+$/)) {
+    if (method === 'GET' && (path.match(/^\/.netlify\/functions\/api\/games\/.+$/) || path.match(/^\/api\/games\/.+$/))) {
       const gameName = path.split('/').pop();
       const game = games.find(g => sanitizeGameName(g.name) === sanitizeGameName(gameName));
       
@@ -119,7 +119,7 @@ exports.handler = async (event) => {
     }
 
     // POST /api/games - adicionar novo jogo
-    if (method === 'POST' && path === '/.netlify/functions/api/games') {
+    if (method === 'POST' && (path === '/.netlify/functions/api/games' || path === '/api/games')) {
       const body = JSON.parse(event.body);
       const { name, difficulty, time, missable, roadmap, trophies } = body;
 
