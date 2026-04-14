@@ -1,430 +1,623 @@
 <!DOCTYPE html>
-<html lang="pt-PT">
+<html lang="pt-br">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Math Clash Online</title>
-  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js"></script>
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Master Trophy Guide - O Guia do Platinador</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0f172a;
+            color: #f8fafc;
+        }
+
+        .glass-morphism {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .trophy-platinum { color: #818cf8; }
+        .trophy-gold { color: #fbbf24; }
+        .trophy-silver { color: #cbd5e1; }
+        .trophy-bronze { color: #d97706; }
+
+        .loading-spinner {
+            border: 4px solid rgba(255, 255, 255, 0.1);
+            border-left-color: #6366f1;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: rgba(99, 102, 241, 0.5);
+            border-radius: 10px;
+        }
+
+        .trophy-card.completed {
+            opacity: 0.6;
+            border-left-color: #22c55e !important;
+        }
+
+        .spoiler-blur {
+            filter: blur(5px);
+            transition: filter 0.3s ease;
+            cursor: pointer;
+            user-select: none;
+        }
+        .spoiler-blur:hover {
+            filter: blur(2px);
+        }
+        .spoiler-unveiled {
+            filter: none !important;
+        }
+    </style>
 </head>
-<body class="m-0 p-0">
-  <div id="root"></div>
+<body class="min-h-screen pb-12">
 
-  <script type="text/babel">
-    const { useState, useEffect, useRef } = React;
-
-    // ========== ÍCONES SIMPLES ==========
-    const Zap = () => <span>⚡</span>;
-    const Copy = () => <span>📋</span>;
-    const Plus = () => <span>➕</span>;
-    const LogIn = () => <span>🔑</span>;
-    const User = () => <span>👤</span>;
-    const Users = () => <span>👥</span>;
-    const Play = () => <span>▶️</span>;
-    const RefreshCw = () => <span>🔄</span>;
-    const Trophy = () => <span>🏆</span>;
-
-    // ========== FIREBASE CONFIG ==========
-    const firebaseConfig = {
-      apiKey: "AIzaSyDemoKey123456789",
-      authDomain: "math-clash-online.firebaseapp.com",
-      projectId: "math-clash-online",
-      storageBucket: "math-clash-online.appspot.com",
-      messagingSenderId: "123456789",
-      appId: "1:123456789:web:abcdef123456"
-    };
-
-    let app, auth, db;
-    let firebaseError = null;
-    
-    if (typeof firebase !== 'undefined') {
-      try {
-        app = firebase.initializeApp(firebaseConfig);
-        auth = firebase.auth(app);
-        db = firebase.firestore(app);
-        console.log("Firebase inicializado com sucesso");
-      } catch (e) {
-        firebaseError = e.message;
-        console.error("Firebase init error:", e);
-      }
-    } else {
-      firebaseError = "Firebase não carregou. Verifica a conexão de internet.";
-    }
-
-    // ========== COMPONENTE PRINCIPAL ==========
-    const App = () => {
-      const [user, setUser] = useState(null);
-      const [roomCode, setRoomCode] = useState('');
-      const [roomData, setRoomData] = useState(null);
-      const [gameState, setGameState] = useState('lobby'); // 'lobby', 'playing', 'results'
-      const [currentProblem, setCurrentProblem] = useState({ question: '', answer: 0 });
-      const [userInput, setUserInput] = useState('');
-      const [feedback, setFeedback] = useState(null);
-      const [timer, setTimer] = useState(0);
-      const [isHost, setIsHost] = useState(false);
-
-      // --- Autenticação ---
-      useEffect(() => {
-        const initAuth = async () => {
-          if (!auth) {
-            // Sem Firebase, usar ID aleatório
-            setUser({ uid: 'user_' + Math.random().toString(36).substr(2, 9) });
-            return;
-          }
-          try {
-            const result = await auth.signInAnonymously();
-            setUser(result.user);
-            console.log("Utilizador autenticado:", result.user.uid);
-          } catch (e) {
-            console.error("Auth error:", e);
-            // Fallback para teste
-            setUser({ uid: 'user_' + Math.random().toString(36).substr(2, 9) });
-          }
-        };
-        initAuth();
-      }, []);
-
-      // --- Lógica da Sala ---
-      useEffect(() => {
-        if (!user || !roomCode || !db) return;
-
-        const roomRef = db.collection('artifacts').doc('math-clash-online').collection('public').doc('data').collection('rooms').doc(roomCode);
-        const unsubscribe = roomRef.onSnapshot((docSnap) => {
-          if (docSnap.exists) {
-            const data = docSnap.data();
-            setRoomData(data);
-            if (data.status === 'playing') setGameState('playing');
-            if (data.status === 'results') setGameState('results');
-            if (data.status === 'lobby') setGameState('lobby');
-            setTimer(data.timeLeft || 0);
-          }
-        }, (err) => console.error("Erro na sala:", err));
-
-        return () => unsubscribe();
-      }, [user, roomCode]);
-
-      // --- Cronómetro (Host controla) ---
-      useEffect(() => {
-        let interval;
-        if (isHost && roomData?.status === 'playing' && roomData?.timeLeft > 0) {
-          interval = setInterval(async () => {
-            const newTime = roomData.timeLeft - 1;
-            const roomRef = db.collection('artifacts').doc('math-clash-online').collection('public').doc('data').collection('rooms').doc(roomCode);
-            await roomRef.update({
-              timeLeft: newTime,
-              status: newTime <= 0 ? 'results' : 'playing'
-            });
-          }, 1000);
-        }
-        return () => clearInterval(interval);
-      }, [isHost, roomData, roomCode]);
-
-      // --- Gerar Problema ---
-      function generateMathProblem(difficulty) {
-        const max = difficulty === 'hard' ? 50 : (difficulty === 'normal' ? 20 : 10);
-        const ops = ['+', '-', '*'];
-        const op = ops[Math.floor(Math.random() * (difficulty === 'easy' ? 2 : 3))];
-        let n1 = Math.floor(Math.random() * max) + 1;
-        let n2 = Math.floor(Math.random() * max) + 1;
-        if (op === '-') if (n1 < n2) [n1, n2] = [n2, n1];
-        if (op === '*') { n1 = Math.min(n1, 12); n2 = Math.min(n2, 10); }
-        return {
-          question: `${n1} ${op === '*' ? '×' : op} ${n2}`,
-          answer: op === '+' ? n1 + n2 : op === '-' ? n1 - n2 : n1 * n2
-        };
-      }
-
-      // --- Criar Sala ---
-      const createRoom = async () => {
-        if (!user) return;
-        const newCode = Math.random().toString(36).substring(2, 7).toUpperCase();
-        
-        if (!db) {
-          // Modo teste sem Firebase
-          setRoomCode(newCode);
-          setIsHost(true);
-          setCurrentProblem(generateMathProblem('normal'));
-          return;
-        }
-
-        const roomRef = db.collection('artifacts').doc('math-clash-online').collection('public').doc('data').collection('rooms').doc(newCode);
-        
-        const initialData = {
-          code: newCode,
-          hostId: user.uid,
-          players: {
-            [user.uid]: { name: "Jogador 1", score: 0 }
-          },
-          status: 'lobby',
-          timeLeft: 60,
-          difficulty: 'normal',
-          lastProblem: generateMathProblem('normal')
-        };
-
-        try {
-          await roomRef.set(initialData);
-          setRoomCode(newCode);
-          setIsHost(true);
-          setCurrentProblem(initialData.lastProblem);
-        } catch (e) {
-          alert("Erro ao criar sala: " + e.message);
-        }
-      };
-
-      // --- Entrar Sala ---
-      const joinRoom = async (codeToJoin) => {
-        if (!user || !codeToJoin) return;
-        const cleanCode = codeToJoin.toUpperCase();
-        const roomRef = db.collection('artifacts').doc('math-clash-online').collection('public').doc('data').collection('rooms').doc(cleanCode);
-
-        try {
-          const snap = await roomRef.get();
-          if (snap.exists) {
-            const data = snap.data();
-            await roomRef.update({
-              [`players.${user.uid}`]: { name: "Jogador 2", score: 0 }
-            });
-            setRoomCode(cleanCode);
-            setIsHost(false);
-            setCurrentProblem(data.lastProblem);
-          } else {
-            alert("Sala não encontrada!");
-          }
-        } catch (e) {
-          console.error("Erro ao entrar:", e);
-        }
-      };
-
-      // --- Iniciar Partida ---
-      const startMatch = async () => {
-        if (!isHost || !roomData) return;
-        const roomRef = db.collection('artifacts').doc('math-clash-online').collection('public').doc('data').collection('rooms').doc(roomCode);
-        const firstProblem = generateMathProblem(roomData.difficulty);
-        
-        const resetPlayers = { ...roomData.players };
-        Object.keys(resetPlayers).forEach(id => resetPlayers[id].score = 0);
-
-        try {
-          await roomRef.update({
-            status: 'playing',
-            timeLeft: 60,
-            players: resetPlayers,
-            lastProblem: firstProblem
-          });
-        } catch (e) {
-          console.error("Erro ao iniciar:", e);
-        }
-      };
-
-      // --- Submeter Resposta ---
-      const submitAnswer = async (e) => {
-        e.preventDefault();
-        if (!roomData) return;
-        const val = parseInt(userInput);
-        if (val === roomData.lastProblem.answer) {
-          setFeedback('correct');
-          const roomRef = db.collection('artifacts').doc('math-clash-online').collection('public').doc('data').collection('rooms').doc(roomCode);
-          
-          const nextProb = generateMathProblem(roomData.difficulty);
-          try {
-            await roomRef.update({
-              [`players.${user.uid}.score`]: (roomData.players[user.uid]?.score || 0) + 1,
-              lastProblem: nextProb
-            });
-          } catch (e) {
-            console.error("Erro ao atualizar score:", e);
-          }
-
-          setTimeout(() => {
-            setFeedback(null);
-            setUserInput('');
-          }, 200);
-        } else {
-          setFeedback('wrong');
-          setTimeout(() => setFeedback(null), 500);
-          setUserInput('');
-        }
-      };
-
-      // --- Sincronizar Problema ---
-      useEffect(() => {
-        if (roomData?.lastProblem) {
-          setCurrentProblem(roomData.lastProblem);
-          setUserInput('');
-        }
-      }, [roomData?.lastProblem]);
-
-      if (!user) return (
-        <div className="min-h-screen bg-slate-900 flex items-center justify-center text-white flex-col gap-4">
-          <div className="text-center">
-            <div className="text-3xl mb-4">⚡</div>
-            <p className="text-xl">A carregar duelo...</p>
-            {firebaseError && (
-              <div className="mt-4 text-yellow-400 text-sm bg-slate-800 p-3 rounded">
-                ⚠️ {firebaseError}
-              </div>
-            )}
-          </div>
+    <!-- Header -->
+    <header class="p-6 glass-morphism sticky top-0 z-50">
+        <div class="max-w-6xl mx-auto flex justify-between items-center">
+            <h1 class="text-2xl font-bold bg-gradient-to-r from-indigo-400 to-purple-500 bg-clip-text text-transparent cursor-pointer" onclick="showView('home')">
+                <i class="fas fa-trophy mr-2"></i>Master Trophy Guide
+            </h1>
+            <nav class="flex space-x-6 text-sm font-medium">
+                <button onclick="showView('home')" class="hover:text-indigo-400 transition">Pesquisar</button>
+                <button onclick="showView('library')" class="hover:text-indigo-400 transition flex items-center gap-2">
+                    Meus Jogos <span id="libraryBadge" class="bg-indigo-600 text-[10px] px-1.5 py-0.5 rounded-full hidden">0</span>
+                </button>
+            </nav>
         </div>
-      );
+    </header>
 
-      return (
-        <div className="min-h-screen bg-slate-900 text-white font-sans p-4 flex flex-col items-center justify-center">
-          <div className="max-w-md w-full bg-slate-800 rounded-3xl shadow-2xl overflow-hidden border border-slate-700">
+    <main class="max-w-6xl mx-auto p-6">
+        
+        <!-- VIEW: HOME (Search) -->
+        <section id="view-home" class="space-y-8">
+            <div class="text-center space-y-4 py-8">
+                <h2 class="text-4xl font-extrabold">O Teu Assistente de <span class="text-indigo-500">Platinas</span></h2>
+                <p class="text-slate-400 text-lg">Gera roteiros estratégicos e faz o tracking das tuas conquistas.</p>
+                
+                <div class="relative max-w-2xl mx-auto mt-8">
+                    <input id="gameInput" type="text" placeholder="Digite o nome do jogo..." 
+                        class="w-full p-4 pl-12 pr-12 rounded-2xl bg-slate-800 border border-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition text-lg">
+                    <i class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-500"></i>
+                    <button id="btnLoad" onclick="loadGuide()" class="absolute right-2 top-1/2 -translate-y-1/2 bg-indigo-600 hover:bg-indigo-500 px-6 py-2 rounded-xl font-bold transition">
+                        Carregar Guia
+                    </button>
+                    <div id="suggestions" class="absolute top-full left-0 right-0 bg-slate-800 border border-slate-700 rounded-2xl mt-2 max-h-40 overflow-y-auto hidden z-10"></div>
+                </div>
+
+                <div class="text-center mt-4">
+                    <button onclick="toggleAddForm()" class="text-indigo-400 hover:text-indigo-300 underline">Adicionar Jogo (Admin)</button>
+                </div>
+
+                <div id="addForm" class="hidden max-w-2xl mx-auto mt-6 glass-morphism p-6 rounded-3xl">
+                    <h3 class="text-xl font-bold mb-4">Adicionar Novo Jogo</h3>
+                    <form id="gameForm" onsubmit="addGame(event)">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                            <input type="text" id="gameName" placeholder="Nome do Jogo" class="p-3 rounded-xl bg-slate-800 border border-slate-700" required>
+                            <input type="number" id="gameDifficulty" placeholder="Dificuldade (1-10)" min="1" max="10" class="p-3 rounded-xl bg-slate-800 border border-slate-700" required>
+                            <input type="text" id="gameTime" placeholder="Tempo Estimado" class="p-3 rounded-xl bg-slate-800 border border-slate-700" required>
+                            <textarea id="gameMissable" placeholder="Troféus Perdíveis" class="p-3 rounded-xl bg-slate-800 border border-slate-700" required></textarea>
+                        </div>
+                        <textarea id="gameRoadmap" placeholder="Roadmap (uma linha por passo)" class="w-full p-3 rounded-xl bg-slate-800 border border-slate-700 mb-4" required></textarea>
+                        <div id="trophiesContainer">
+                            <h4 class="font-bold mb-2">Troféus</h4>
+                            <div class="trophy-input mb-4 p-4 bg-slate-800 rounded-xl">
+                                <input type="text" placeholder="ID do Troféu" class="p-2 rounded bg-slate-700 border border-slate-600 mb-2 w-full" required>
+                                <input type="text" placeholder="Nome" class="p-2 rounded bg-slate-700 border border-slate-600 mb-2 w-full" required>
+                                <select class="p-2 rounded bg-slate-700 border border-slate-600 mb-2 w-full" required>
+                                    <option value="">Tipo</option>
+                                    <option value="Platina">Platina</option>
+                                    <option value="Ouro">Ouro</option>
+                                    <option value="Prata">Prata</option>
+                                    <option value="Bronze">Bronze</option>
+                                </select>
+                                <textarea placeholder="Descrição" class="p-2 rounded bg-slate-700 border border-slate-600 mb-2 w-full" required></textarea>
+                                <textarea placeholder="Dica" class="p-2 rounded bg-slate-700 border border-slate-600 mb-2 w-full" required></textarea>
+                                <label class="flex items-center">
+                                    <input type="checkbox" class="mr-2"> É Spoiler
+                                </label>
+                            </div>
+                        </div>
+                        <button type="button" onclick="addTrophyInput()" class="bg-slate-600 hover:bg-slate-500 px-4 py-2 rounded-xl mr-2">Adicionar Troféu</button>
+                        <button type="submit" class="bg-indigo-600 hover:bg-indigo-500 px-6 py-2 rounded-xl font-bold">Salvar Jogo</button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Features Grid -->
+            <div id="features" class="grid md:grid-cols-3 gap-6 pt-12">
+                <div class="glass-morphism p-6 rounded-3xl border-l-4 border-indigo-500">
+                    <div class="text-indigo-400 text-3xl mb-4"><i class="fas fa-layer-group"></i></div>
+                    <h3 class="font-bold mb-2">Multi-Jogo</h3>
+                    <p class="text-slate-400 text-sm">Guarda vários guias na tua biblioteca e alterna entre eles.</p>
+                </div>
+                <div class="glass-morphism p-6 rounded-3xl border-l-4 border-red-500">
+                    <div class="text-red-500 text-3xl mb-4"><i class="fas fa-eye-slash"></i></div>
+                    <h3 class="font-bold mb-2">Modo Spoiler</h3>
+                    <p class="text-slate-400 text-sm">Esconde dicas sensíveis até estares pronto para as ler.</p>
+                </div>
+                <div class="glass-morphism p-6 rounded-3xl border-l-4 border-green-500">
+                    <div class="text-green-500 text-3xl mb-4"><i class="fas fa-cloud-upload-alt"></i></div>
+                    <h3 class="font-bold mb-2">Cloud Progress</h3>
+                    <p class="text-slate-400 text-sm">Os teus troféus marcados ficam guardados localmente para sempre.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- VIEW: LIBRARY -->
+        <section id="view-library" class="hidden space-y-6">
+            <h2 class="text-3xl font-bold"><i class="fas fa-book-open mr-3 text-indigo-500"></i>A Minha Biblioteca</h2>
+            <div id="libraryList" class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- Jogos guardados aparecem aqui -->
+            </div>
+        </section>
+
+        <!-- VIEW: GUIDE DETAIL -->
+        <section id="view-guide" class="hidden">
+            <div id="loading" class="flex flex-col items-center space-y-4 py-12">
+                <div class="loading-spinner"></div>
+                <p class="text-indigo-400 animate-pulse font-medium text-center">A IA está a organizar os troféus e a preparar as dicas...</p>
+            </div>
+
+            <div id="guideContent" class="hidden grid grid-cols-1 lg:grid-cols-4 gap-8">
+                <!-- Sidebar -->
+                <aside id="sidebarInfo" class="lg:col-span-1 space-y-6"></aside>
+                
+                <!-- Main Content -->
+                <div class="lg:col-span-3 space-y-6">
+                    <div class="glass-morphism p-4 rounded-2xl flex flex-wrap items-center justify-between gap-4">
+                        <div class="flex items-center gap-2 overflow-x-auto pb-1 md:pb-0">
+                            <button onclick="filterTrophies('all')" class="filter-btn active bg-indigo-600 px-4 py-1.5 rounded-lg text-xs font-bold transition">Todos</button>
+                            <button onclick="filterTrophies('Platina')" class="filter-btn bg-slate-800 px-4 py-1.5 rounded-lg text-xs font-bold">Platina</button>
+                            <button onclick="filterTrophies('Ouro')" class="filter-btn bg-slate-800 px-4 py-1.5 rounded-lg text-xs font-bold">Ouro</button>
+                            <button onclick="filterTrophies('Prata')" class="filter-btn bg-slate-800 px-4 py-1.5 rounded-lg text-xs font-bold">Prata</button>
+                            <button onclick="filterTrophies('Bronze')" class="filter-btn bg-slate-800 px-4 py-1.5 rounded-lg text-xs font-bold">Bronze</button>
+                        </div>
+                        <div class="text-xs text-slate-400 font-medium">
+                            Progresso: <span id="progressPercent" class="text-indigo-400">0%</span>
+                        </div>
+                    </div>
+                    <div id="trophyList" class="space-y-4 max-h-[900px] overflow-y-auto pr-2 custom-scrollbar"></div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <script>
+        let currentGuide = null;
+        let library = JSON.parse(localStorage.getItem('trophy_library') || '{}');
+        let availableGames = [];
+
+        // Carregar lista de jogos
+        async function loadGames() {
+            try {
+                const response = await fetch('http://localhost:3000/api/games');
+                availableGames = await response.json();
+            } catch (error) {
+                console.error('Erro ao carregar jogos:', error);
+            }
+        }
+
+        // Mostrar sugestões
+        function showSuggestions(query) {
+            const suggestionsDiv = document.getElementById('suggestions');
+            if (!query) {
+                suggestionsDiv.classList.add('hidden');
+                return;
+            }
+            const filtered = availableGames.filter(game => 
+                game.name.toLowerCase().includes(query.toLowerCase())
+            );
+            if (filtered.length === 0) {
+                suggestionsDiv.classList.add('hidden');
+                return;
+            }
+            suggestionsDiv.innerHTML = filtered.map(game => 
+                `<div class="p-3 hover:bg-slate-700 cursor-pointer" onclick="selectGame('${game.name}')">${game.name}</div>`
+            ).join('');
+            suggestionsDiv.classList.remove('hidden');
+        }
+
+        // Selecionar jogo da sugestão
+        function selectGame(name) {
+            document.getElementById('gameInput').value = name;
+            document.getElementById('suggestions').classList.add('hidden');
+            loadGuide();
+        }
+
+        // Navegação simples entre vistas
+        function showView(viewId) {
+            document.querySelectorAll('main > section').forEach(s => s.classList.add('hidden'));
+            document.getElementById(`view-${viewId}`).classList.remove('hidden');
+            if (viewId === 'library') renderLibrary();
+            updateLibraryBadge();
+        }
+
+        function updateLibraryBadge() {
+            const count = Object.keys(library).length;
+            const badge = document.getElementById('libraryBadge');
+            if (count > 0) {
+                badge.innerText = count;
+                badge.classList.remove('hidden');
+            } else {
+                badge.classList.add('hidden');
+            }
+        }
+
+        // Carregar guia do jogo digitado
+        async function loadGuide() {
+            const gameName = document.getElementById('gameInput').value.trim();
+            if (!gameName) return;
+
+            showView('guide');
+            document.getElementById('loading').classList.remove('hidden');
+            document.getElementById('guideContent').classList.add('hidden');
+
+            try {
+                const response = await fetch(`http://localhost:3000/api/games/${encodeURIComponent(gameName)}`);
+                if (!response.ok) {
+                    throw new Error('Jogo não encontrado');
+                }
+                currentGuide = await response.json();
+                
+                // Adicionar à biblioteca se não existir
+                if (!library[currentGuide.name]) {
+                    library[currentGuide.name] = { ...currentGuide, completed: [] };
+                    saveLibrary();
+                }
+                
+                renderGuideUI();
+            } catch (error) {
+                alert("Erro ao carregar guia: " + error.message);
+                showView('home');
+            }
+        }
+
+        function toggleTrophy(gameName, trophyId) {
+            const game = library[gameName];
+            const index = game.completed.indexOf(trophyId);
+            if (index > -1) game.completed.splice(index, 1);
+            else game.completed.push(trophyId);
             
-            {/* HEADER */}
-            <div className="bg-indigo-600 p-6 text-center">
-              <h1 className="text-3xl font-black italic flex items-center justify-center gap-2">
-                <Zap /> MATH CLASH ONLINE
-              </h1>
-              {roomCode && (
-                <div className="mt-2 inline-flex items-center gap-2 bg-indigo-800/50 px-3 py-1 rounded-full text-xs font-mono">
-                  SALA: {roomCode}
-                  <button onClick={() => {
-                    navigator.clipboard.writeText(roomCode);
-                  }} className="hover:text-yellow-400"><Copy /></button>
-                </div>
-              )}
-            </div>
+            saveLibrary();
+            renderGuideUI();
+        }
 
-            <div className="p-8">
-              {/* LOBBY / ENTRADA */}
-              {gameState === 'lobby' && !roomCode && (
-                <div className="space-y-6">
-                  <div className="grid grid-cols-2 gap-4">
-                    <button onClick={createRoom} className="flex flex-col items-center gap-3 p-6 bg-slate-700 rounded-2xl border-2 border-transparent hover:border-indigo-500 transition-all">
-                      <div className="text-4xl"><Plus /></div>
-                      <span className="font-bold text-sm">Criar Sala</span>
-                    </button>
-                    <div className="flex flex-col items-center gap-3 p-6 bg-slate-700 rounded-2xl">
-                      <div className="text-4xl"><LogIn /></div>
-                      <input 
-                        className="w-full bg-slate-800 border-b border-slate-500 text-center text-xs p-1 outline-none focus:border-emerald-400 uppercase"
-                        placeholder="CÓDIGO"
-                        value={roomCode}
-                        onChange={(e) => joinRoom(e.target.value)}
-                      />
-                      <span className="font-bold text-xs">Entrar</span>
+        function saveLibrary() {
+            localStorage.setItem('trophy_library', JSON.stringify(library));
+            updateLibraryBadge();
+        }
+
+        function toggleSpoiler(el) {
+            el.classList.add('spoiler-unveiled');
+        }
+
+        function renderLibrary() {
+            const list = document.getElementById('libraryList');
+            const games = Object.values(library);
+            
+            if (games.length === 0) {
+                list.innerHTML = `<div class="col-span-full text-center py-12 text-slate-500 italic">Ainda não guardaste nenhum jogo.</div>`;
+                return;
+            }
+
+            list.innerHTML = games.map(game => {
+                const perc = Math.round((game.completed.length / game.trophies.length) * 100) || 0;
+                return `
+                <div class="glass-morphism p-6 rounded-3xl hover:border-indigo-500 transition cursor-pointer group" onclick="loadFromLibrary('${game.game}')">
+                    <div class="flex justify-between items-start mb-4">
+                        <h3 class="font-bold text-xl group-hover:text-indigo-400 transition">${game.game}</h3>
+                        <button onclick="event.stopPropagation(); deleteFromLibrary('${game.game}')" class="text-slate-600 hover:text-red-500"><i class="fas fa-trash-alt text-xs"></i></button>
                     </div>
-                  </div>
-                  <div className="text-center text-slate-500 text-xs">Partilha o código com o teu amigo para jogarem.</div>
-                </div>
-              )}
-
-              {/* ESPERA NO LOBBY */}
-              {gameState === 'lobby' && roomCode && (
-                <div className="space-y-6 text-center">
-                  <div className="flex justify-center gap-4">
-                    {roomData && Object.entries(roomData.players || {}).map(([id, p], idx) => (
-                      <div key={id} className="flex flex-col items-center">
-                        <div className="w-12 h-12 bg-indigo-500 rounded-full flex items-center justify-center mb-2 shadow-lg text-2xl">
-                          <User />
+                    <div class="space-y-2">
+                        <div class="flex justify-between text-xs text-slate-400">
+                            <span>Progresso</span>
+                            <span>${perc}%</span>
                         </div>
-                        <span className="text-xs font-bold">{p.name}</span>
-                      </div>
-                    ))}
-                    {roomData && Object.keys(roomData.players || {}).length < 2 && (
-                      <div className="flex flex-col items-center opacity-50">
-                        <div className="w-12 h-12 bg-slate-700 rounded-full flex items-center justify-center mb-2 border-2 border-dashed border-slate-500 text-2xl">
-                          <Users />
+                        <div class="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
+                            <div class="bg-indigo-500 h-full transition-all" style="width: ${perc}%"></div>
                         </div>
-                        <span className="text-xs">Aguardando...</span>
-                      </div>
-                    )}
-                  </div>
-
-                  {isHost && roomData && Object.keys(roomData.players || {}).length >= 2 && (
-                    <button onClick={startMatch} className="w-full bg-emerald-500 hover:bg-emerald-400 py-4 rounded-2xl font-bold flex items-center justify-center gap-2 transition-all">
-                      <Play /> INICIAR DUELO
-                    </button>
-                  )}
-                  {!isHost && <p className="text-indigo-400 text-sm">O Host vai iniciar a partida...</p>}
-                </div>
-              )}
-
-              {/* JOGO EM CURSO */}
-              {gameState === 'playing' && roomData && (
-                <div className="space-y-6">
-                  <div className="flex justify-between items-center mb-4">
-                    <div className={`text-2xl font-black ${timer < 10 ? 'text-red-500' : 'text-yellow-400'}`}>
-                      {timer}s
                     </div>
-                    <div className="flex gap-4">
-                      {Object.entries(roomData.players).map(([id, p]) => (
-                        <div key={id} className={`text-right ${id === user.uid ? 'text-indigo-400' : 'text-slate-400'}`}>
-                          <div className="text-[10px] font-bold uppercase">{id === user.uid ? 'TU' : 'RIVAL'}</div>
-                          <div className="text-xl font-black">{p.score}</div>
-                        </div>
-                      ))}
+                </div>`;
+            }).join('');
+        }
+
+        function loadFromLibrary(name) {
+            currentGuide = library[name];
+            showView('guide');
+            renderGuideUI();
+        }
+
+        function deleteFromLibrary(name) {
+            delete library[name];
+            saveLibrary();
+            renderLibrary();
+        }
+
+        function renderGuideUI() {
+            document.getElementById('loading').classList.add('hidden');
+            const content = document.getElementById('guideContent');
+            content.classList.remove('hidden');
+
+            const gameData = library[currentGuide.game];
+            
+            // Sidebar
+            document.getElementById('sidebarInfo').innerHTML = `
+                <div class="glass-morphism p-6 rounded-3xl space-y-6 sticky top-24">
+                    <h2 class="text-2xl font-bold text-indigo-400">${currentGuide.game}</h2>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div class="bg-slate-800 p-2 rounded-xl text-center"><span class="text-[10px] block opacity-50 uppercase">Dificuldade</span><span class="font-bold">${currentGuide.difficulty}/10</span></div>
+                        <div class="bg-slate-800 p-2 rounded-xl text-center"><span class="text-[10px] block opacity-50 uppercase">Tempo</span><span class="font-bold">${currentGuide.time}</span></div>
                     </div>
-                  </div>
-
-                  <div className="text-center py-6">
-                    <div className="text-5xl font-black mb-2">{roomData.lastProblem.question}</div>
-                    <div className="text-slate-500 text-sm italic">Resolve rápido!</div>
-                  </div>
-
-                  <form onSubmit={submitAnswer} className="relative">
-                    <input
-                      autoFocus
-                      type="number"
-                      value={userInput}
-                      onChange={(e) => setUserInput(e.target.value)}
-                      className={`w-full bg-slate-900 border-2 rounded-2xl py-5 px-6 text-center text-3xl font-bold outline-none transition-all ${
-                        feedback === 'correct' ? 'border-green-500 bg-green-500/10' : 
-                        feedback === 'wrong' ? 'border-red-500 bg-red-500/10' : 'border-slate-600 focus:border-indigo-500'
-                      }`}
-                      placeholder="?"
-                    />
-                  </form>
+                    <div class="bg-orange-500/10 border border-orange-500/20 p-4 rounded-xl">
+                        <h4 class="text-[10px] font-bold text-orange-400 mb-1">ALERTA PERDÍVEIS</h4>
+                        <p class="text-[11px] leading-relaxed">${currentGuide.missable}</p>
+                    </div>
+                    <div class="space-y-3">
+                        <h4 class="text-xs font-bold uppercase opacity-50">Roadmap Estratégico</h4>
+                        ${currentGuide.roadmap.map((s, i) => `<div class="flex gap-2 text-[11px]"><span class="text-indigo-500">${i+1}.</span><p>${s}</p></div>`).join('')}
+                    </div>
                 </div>
-              )}
+            `;
 
-              {/* RESULTADOS */}
-              {gameState === 'results' && roomData && (
-                <div className="space-y-6 text-center">
-                  <div className="text-6xl"><Trophy /></div>
-                  <h2 className="text-3xl font-black italic">FIM DE JOGO!</h2>
-                  
-                  <div className="space-y-3">
-                    {Object.entries(roomData.players)
-                      .sort((a, b) => b[1].score - a[1].score)
-                      .map(([id, p], idx) => (
-                        <div key={id} className={`flex items-center justify-between p-4 rounded-2xl border-2 ${idx === 0 ? 'bg-indigo-500/20 border-indigo-500' : 'bg-slate-700/50 border-slate-600'}`}>
-                          <div className="flex items-center gap-3">
-                            <span className="font-black text-2xl">{idx + 1}º</span>
-                            <span className="font-bold">{id === user.uid ? 'TU' : 'RIVAL'}</span>
-                          </div>
-                          <span className="text-2xl font-black">{p.score} pts</span>
+            // Trophy List
+            const completedCount = gameData.completed.length;
+            const total = currentGuide.trophies.length;
+            document.getElementById('progressPercent').innerText = `${Math.round((completedCount/total)*100)}% (${completedCount}/${total})`;
+
+            document.getElementById('trophyList').innerHTML = currentGuide.trophies.map(t => {
+                const isDone = gameData.completed.includes(t.id);
+                const ytSearch = encodeURIComponent(`${currentGuide.game} ${t.name} trophy guide`);
+                return `
+                <div class="trophy-card glass-morphism p-5 rounded-2xl border-l-4 transition ${isDone ? 'completed border-green-500' : 'border-slate-700'}" data-type="${t.type}">
+                    <div class="flex gap-4">
+                        <div class="flex flex-col items-center gap-3">
+                            <i class="fas fa-trophy text-2xl ${t.type.toLowerCase().includes('platina') ? 'trophy-platinum' : t.type.toLowerCase().includes('ouro') ? 'trophy-gold' : 'trophy-silver'}"></i>
+                            <button onclick="toggleTrophy('${currentGuide.game}', '${t.id}')" class="w-6 h-6 rounded border border-slate-600 flex items-center justify-center">
+                                ${isDone ? '<i class="fas fa-check text-xs text-green-500"></i>' : ''}
+                            </button>
                         </div>
-                      ))}
-                  </div>
+                        <div class="flex-1">
+                            <div class="flex justify-between items-start">
+                                <h4 class="font-bold">${t.name}</h4>
+                                <a href="https://www.youtube.com/results?search_query=${ytSearch}" target="_blank" class="text-red-500/50 hover:text-red-500"><i class="fab fa-youtube"></i></a>
+                            </div>
+                            <p class="text-xs text-slate-500 italic mt-1">${t.description}</p>
+                            <div class="mt-3 bg-indigo-500/5 p-3 rounded-xl border border-indigo-500/10 ${t.is_spoiler ? 'spoiler-blur' : ''}" onclick="toggleSpoiler(this)">
+                                <p class="text-xs text-indigo-300"><span class="font-bold text-[10px] block opacity-50 mb-1">Dicas:</span>${t.tip}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>`;
+            }).join('');
+        }
 
-                  {isHost ? (
-                    <button onClick={startMatch} className="w-full bg-white text-slate-900 py-4 rounded-2xl font-bold hover:bg-slate-200 flex items-center justify-center gap-2">
-                      <RefreshCw /> REVANCHE
-                    </button>
-                  ) : (
-                    <p className="text-slate-400 text-sm italic">Aguarda a revanche...</p>
-                  )}
-                  
-                  <button onClick={() => window.location.reload()} className="text-slate-500 text-xs hover:underline uppercase">Sair da Sala</button>
+        function filterTrophies(type) {
+            document.querySelectorAll('.trophy-card').forEach(c => {
+                c.classList.toggle('hidden', type !== 'all' && !c.dataset.type.includes(type));
+            });
+            document.querySelectorAll('.filter-btn').forEach(b => {
+                b.classList.toggle('bg-indigo-600', b.innerText.toLowerCase().includes(type.toLowerCase()) || (type === 'all' && b.innerText === 'Todos'));
+                b.classList.toggle('bg-slate-800', !(b.innerText.toLowerCase().includes(type.toLowerCase()) || (type === 'all' && b.innerText === 'Todos')));
+            });
+        }
+
+        function saveLibrary() {
+            localStorage.setItem('trophy_library', JSON.stringify(library));
+            updateLibraryBadge();
+        }
+
+        function toggleTrophy(gameName, trophyId) {
+            const game = library[gameName];
+            const index = game.completed.indexOf(trophyId);
+            if (index > -1) game.completed.splice(index, 1);
+            else game.completed.push(trophyId);
+            
+            saveLibrary();
+            renderGuideUI();
+        }
+
+        function toggleSpoiler(el) {
+            el.classList.add('spoiler-unveiled');
+        }
+
+        function renderLibrary() {
+            const list = document.getElementById('libraryList');
+            const games = Object.values(library);
+            
+            if (games.length === 0) {
+                list.innerHTML = `<div class="col-span-full text-center py-12 text-slate-500 italic">Ainda não guardaste nenhum jogo.</div>`;
+                return;
+            }
+
+            list.innerHTML = games.map(game => {
+                const perc = Math.round((game.completed.length / game.trophies.length) * 100) || 0;
+                return `
+                <div class="glass-morphism p-6 rounded-3xl hover:border-indigo-500 transition cursor-pointer group" onclick="loadFromLibrary('${game.game}')">
+                    <div class="flex justify-between items-start mb-4">
+                        <h3 class="font-bold text-xl group-hover:text-indigo-400 transition">${game.game}</h3>
+                        <button onclick="event.stopPropagation(); deleteFromLibrary('${game.game}')" class="text-slate-600 hover:text-red-500"><i class="fas fa-trash-alt text-xs"></i></button>
+                    </div>
+                    <div class="space-y-2">
+                        <div class="flex justify-between text-xs text-slate-400">
+                            <span>Progresso</span>
+                            <span>${perc}%</span>
+                        </div>
+                        <div class="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
+                            <div class="bg-indigo-500 h-full transition-all" style="width: ${perc}%"></div>
+                        </div>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        function loadFromLibrary(name) {
+            currentGuide = library[name];
+            showView('guide');
+            renderGuideUI();
+        }
+
+        function deleteFromLibrary(name) {
+            delete library[name];
+            saveLibrary();
+            renderLibrary();
+        }
+
+        function renderGuideUI() {
+            document.getElementById('loading').classList.add('hidden');
+            const content = document.getElementById('guideContent');
+            content.classList.remove('hidden');
+
+            const gameData = library[currentGuide.game];
+            
+            // Sidebar
+            document.getElementById('sidebarInfo').innerHTML = `
+                <div class="glass-morphism p-6 rounded-3xl space-y-6 sticky top-24">
+                    <h2 class="text-2xl font-bold text-indigo-400">${currentGuide.game}</h2>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div class="bg-slate-800 p-2 rounded-xl text-center"><span class="text-[10px] block opacity-50 uppercase">Dificuldade</span><span class="font-bold">${currentGuide.difficulty}/10</span></div>
+                        <div class="bg-slate-800 p-2 rounded-xl text-center"><span class="text-[10px] block opacity-50 uppercase">Tempo</span><span class="font-bold">${currentGuide.time}</span></div>
+                    </div>
+                    <div class="bg-orange-500/10 border border-orange-500/20 p-4 rounded-xl">
+                        <h4 class="text-[10px] font-bold text-orange-400 mb-1">ALERTA PERDÍVEIS</h4>
+                        <p class="text-[11px] leading-relaxed">${currentGuide.missable}</p>
+                    </div>
+                    <div class="space-y-3">
+                        <h4 class="text-xs font-bold uppercase opacity-50">Roadmap Estratégico</h4>
+                        ${currentGuide.roadmap.map((s, i) => `<div class="flex gap-2 text-[11px]"><span class="text-indigo-500">${i+1}.</span><p>${s}</p></div>`).join('')}
+                    </div>
                 </div>
-              )}
-            </div>
-          </div>
-        </div>
-      );
-    };
+            `;
 
-    // ========== RENDER ==========
-    const root = ReactDOM.createRoot(document.getElementById('root'));
-    root.render(<App />);
-  </script>
+            // Trophy List
+            const completedCount = gameData.completed.length;
+            const total = currentGuide.trophies.length;
+            document.getElementById('progressPercent').innerText = `${Math.round((completedCount/total)*100)}% (${completedCount}/${total})`;
+
+            document.getElementById('trophyList').innerHTML = currentGuide.trophies.map(t => {
+                const isDone = gameData.completed.includes(t.id);
+                const ytSearch = encodeURIComponent(`${currentGuide.game} ${t.name} trophy guide`);
+                return `
+                <div class="trophy-card glass-morphism p-5 rounded-2xl border-l-4 transition ${isDone ? 'completed border-green-500' : 'border-slate-700'}" data-type="${t.type}">
+                    <div class="flex gap-4">
+                        <div class="flex flex-col items-center gap-3">
+                            <i class="fas fa-trophy text-2xl ${t.type.toLowerCase().includes('platina') ? 'trophy-platinum' : t.type.toLowerCase().includes('ouro') ? 'trophy-gold' : 'trophy-silver'}"></i>
+                            <button onclick="toggleTrophy('${currentGuide.game}', '${t.id}')" class="w-6 h-6 rounded border border-slate-600 flex items-center justify-center">
+                                ${isDone ? '<i class="fas fa-check text-xs text-green-500"></i>' : ''}
+                            </button>
+                        </div>
+                        <div class="flex-1">
+                            <div class="flex justify-between items-start">
+                                <h4 class="font-bold">${t.name}</h4>
+                                <a href="https://www.youtube.com/results?search_query=${ytSearch}" target="_blank" class="text-red-500/50 hover:text-red-500"><i class="fab fa-youtube"></i></a>
+                            </div>
+                            <p class="text-xs text-slate-500 italic mt-1">${t.description}</p>
+                            <div class="mt-3 bg-indigo-500/5 p-3 rounded-xl border border-indigo-500/10 ${t.is_spoiler ? 'spoiler-blur' : ''}" onclick="toggleSpoiler(this)">
+                                <p class="text-xs text-indigo-300"><span class="font-bold text-[10px] block opacity-50 mb-1">Dicas:</span>${t.tip}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        function filterTrophies(type) {
+            document.querySelectorAll('.trophy-card').forEach(c => {
+                c.classList.toggle('hidden', type !== 'all' && !c.dataset.type.includes(type));
+            });
+            document.querySelectorAll('.filter-btn').forEach(b => {
+                b.classList.toggle('bg-indigo-600', b.innerText.toLowerCase().includes(type.toLowerCase()) || (type === 'all' && b.innerText === 'Todos'));
+                b.classList.toggle('bg-slate-800', !(b.innerText.toLowerCase().includes(type.toLowerCase()) || (type === 'all' && b.innerText === 'Todos')));
+            });
+        }
+
+        function toggleAddForm() {
+            const form = document.getElementById('addForm');
+            form.classList.toggle('hidden');
+        }
+
+        function addTrophyInput() {
+            const container = document.getElementById('trophiesContainer');
+            const newTrophy = document.querySelector('.trophy-input').cloneNode(true);
+            newTrophy.querySelectorAll('input, textarea, select').forEach(el => el.value = '');
+            container.appendChild(newTrophy);
+        }
+
+        async function addGame(event) {
+            event.preventDefault();
+            const name = document.getElementById('gameName').value;
+            const difficulty = parseInt(document.getElementById('gameDifficulty').value);
+            const time = document.getElementById('gameTime').value;
+            const missable = document.getElementById('gameMissable').value;
+            const roadmap = document.getElementById('gameRoadmap').value.split('\n').filter(s => s.trim());
+
+            const trophies = [];
+            document.querySelectorAll('.trophy-input').forEach(trophyDiv => {
+                const inputs = trophyDiv.querySelectorAll('input, textarea, select');
+                trophies.push({
+                    id: inputs[0].value,
+                    name: inputs[1].value,
+                    type: inputs[2].value,
+                    description: inputs[3].value,
+                    tip: inputs[4].value,
+                    isSpoiler: inputs[5].checked
+                });
+            });
+
+            try {
+                const response = await fetch('http://localhost:3000/api/games', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, difficulty, time, missable, roadmap, trophies })
+                });
+                if (response.ok) {
+                    alert('Jogo adicionado com sucesso!');
+                    document.getElementById('gameForm').reset();
+                    toggleAddForm();
+                } else {
+                    alert('Erro ao adicionar jogo.');
+                }
+            } catch (error) {
+                alert('Erro: ' + error.message);
+            }
+        }
+
+        // Init
+        updateLibraryBadge();
+        loadGames();
+        document.getElementById('gameInput').addEventListener('input', (e) => {
+            showSuggestions(e.target.value.trim());
+        });
+        document.getElementById('gameInput').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                loadGuide();
+            }
+        });
+        document.addEventListener('click', (e) => {
+            if (!document.getElementById('gameInput').contains(e.target) && !document.getElementById('suggestions').contains(e.target)) {
+                document.getElementById('suggestions').classList.add('hidden');
+            }
+        });
+    </script>
 </body>
 </html>
