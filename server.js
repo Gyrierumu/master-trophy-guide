@@ -6,9 +6,13 @@ const fs = require('fs');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Middleware
+// Middleware - ORDEM IMPORTA!
 app.use(cors());
 app.use(express.json());
+
+// Servir ARQUIVOS ESTÁTICOS PRIMEIRO (CSS, JS, imagens, etc.)
+app.use(express.static(path.join(__dirname)));
+app.use(express.static('.'));
 
 // Dados em memória
 let games = [
@@ -155,38 +159,19 @@ app.post('/api/games', (req, res) => {
   res.json({ message: 'Jogo adicionado com sucesso', game: newGame });
 });
 
-// Servir arquivos estáticos
-app.use(express.static('.'));
-
-// Fallback para SPA - serve index.html para rotas desconhecidas
-app.get('*', (req, res) => {
-  try {
-    let html;
-    const possiblePaths = [
-      'index.html',
-      './index.html',
-      path.join(process.cwd(), 'index.html'),
-      path.join(__dirname, 'index.html')
-    ];
-    
-    for (const filepath of possiblePaths) {
-      try {
-        html = fs.readFileSync(filepath, 'utf8');
-        break;
-      } catch (e) {
-        // continue
-      }
+// ROTA FINAL - serve index.html para qualquer outra rota (SPA)
+app.get('*', (req, res, next) => {
+  // Se é uma requisição de arquivo estático que não encontramos, não interfere
+  if (req.accepts('html')) {
+    try {
+      const filePath = path.join(__dirname, 'index.html');
+      res.sendFile(filePath);
+    } catch (err) {
+      console.error('Erro ao enviar index.html:', err);
+      res.status(404).send('Página não encontrada');
     }
-    
-    if (!html) {
-      return res.status(500).send('index.html não encontrado');
-    }
-    
-    res.setHeader('Content-Type', 'text/html; charset=utf-8');
-    res.send(html);
-  } catch (err) {
-    console.error('Erro no fallback:', err);
-    res.status(500).send('Erro: ' + err.message);
+  } else {
+    next();
   }
 });
 
