@@ -76,7 +76,45 @@ let games = [
       { id: 'know_enemy', name: 'Know Your Enemy', type: 'Bronze', description: 'Colete 20 registros mongóis.', tip: 'Encontre e leia 20 registros mongóis espalhados pelo mapa (ícones de pergaminho). Explore acampamentos e fortes.', is_spoiler: false },
       { id: 'light_way', name: 'Light the Way', type: 'Bronze', description: 'Reacenda todos os faróis de Tsushima.', tip: 'Suba em todos os faróis do mapa e acenda suas luzes. Há cerca de 10-15 faróis em Tsushima.', is_spoiler: false }
     ]
-  }
+  },
+   {
+  id: 3,
+  name: 'Hades',
+  difficulty: 5,
+  time: '70-100 horas',
+  missable: 'Não há troféus perdíveis.',
+  roadmap: [
+    'Complete sua primeira fuga',
+    'Avance na história com múltiplas runs',
+    'Desbloqueie todas as armas',
+    'Melhore o Espelho da Noite',
+    'Complete profecias',
+    'Maximize relacionamentos',
+    'Finalize requisitos da platina'
+  ],
+  trophies: [
+    { id: 'h_plat', name: 'God of Blood', type: 'Platina', description: 'Obtenha todos os troféus.', tip: 'Complete tudo.', is_spoiler: false },
+
+    { id: 'h_1', name: 'Is There No Escape?', type: 'Ouro', description: 'Fuja pela primeira vez.', tip: 'Foque upgrades.', is_spoiler: true },
+    { id: 'h_2', name: 'Escaped Tartarus', type: 'Bronze', description: 'Complete o Tártaro.', tip: 'Aprenda o boss.', is_spoiler: false },
+    { id: 'h_3', name: 'Escaped Asphodel', type: 'Bronze', description: 'Complete Asfódelo.', tip: 'Evite lava.', is_spoiler: false },
+    { id: 'h_4', name: 'Escaped Elysium', type: 'Prata', description: 'Complete Elísio.', tip: 'Mate Minotauro primeiro.', is_spoiler: false },
+    { id: 'h_5', name: 'The Family Secret', type: 'Ouro', description: 'Complete a história.', tip: 'Requer várias fugas.', is_spoiler: true },
+
+    { id: 'h_6', name: 'Champion of Elysium', type: 'Prata', description: 'Complete com Medidas Extremas.', tip: 'Ative só esse mod.', is_spoiler: false },
+    { id: 'h_7', name: 'Hold the Onions', type: 'Bronze', description: 'Sem dano.', tip: 'Use build segura.', is_spoiler: false },
+    { id: 'h_8', name: 'To Charon\'s Credit', type: 'Prata', description: 'Derrote Caronte.', tip: 'Só tente forte.', is_spoiler: false },
+    { id: 'h_9', name: 'Well Stocked', type: 'Bronze', description: 'Compre 9 itens.', tip: 'Guarde dinheiro.', is_spoiler: false },
+
+    { id: 'h_10', name: 'Arms Collector', type: 'Bronze', description: 'Todas armas.', tip: 'Use chaves.', is_spoiler: false },
+    { id: 'h_11', name: 'Infernal Arms', type: 'Ouro', description: 'Todos aspectos.', tip: 'Farm Sangue.', is_spoiler: false },
+    { id: 'h_12', name: 'Nyx\'s Mirror', type: 'Bronze', description: 'Complete espelho.', tip: 'Farm escuridão.', is_spoiler: false },
+    { id: 'h_13', name: 'Friends Forever', type: 'Prata', description: 'Max lembranças.', tip: 'Equipe sempre.', is_spoiler: false },
+
+    { id: 'h_14', name: 'Grown Close', type: 'Bronze', description: 'Max vínculo.', tip: 'Dê néctar.', is_spoiler: false },
+    { id: 'h_15', name: 'Had to Happen', type: 'Prata', description: '15 profecias.', tip: 'Complete lista fatal.', is_spoiler: false }
+  ]
+}
 ];
 
 let nextGameId = 3;
